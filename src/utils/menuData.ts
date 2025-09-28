@@ -14,7 +14,6 @@ export interface MenuCategory {
   items: MenuItem[];
 }
 
-
 // 解析 CSV 數據
 export function parseMenuData(csvText: string): MenuItem[] {
   const lines = csvText.trim().split('\n');
@@ -66,7 +65,6 @@ export function getCategories(menuItems: MenuItem[]): string[] {
 
 // 根據分類獲取菜品
 export function getItemsByCategory(menuItems: MenuItem[], category: string): MenuItem[] {
-  
   if (category === '素食') {
     return menuItems.filter(item => 
       item.dietaryTags.includes('素') || item.dietaryTags.includes('純素')
@@ -75,7 +73,6 @@ export function getItemsByCategory(menuItems: MenuItem[], category: string): Men
   
   return menuItems.filter(item => item.category === category);
 }
-
 
 // 隨機獲取食物圖片
 export function getRandomFoodImage(): string {
