@@ -39,7 +39,7 @@ const theme = createTheme({
 
 // 內部組件，使用 Context
 const AppContent: React.FC = () => {
-  const { cartItems } = useRestaurant();
+  const { totalItems, totalAmount } = useRestaurant();
 
   return (
     <ThemeProvider theme={theme}>
@@ -52,11 +52,18 @@ const AppContent: React.FC = () => {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
               Ric's Diner
             </Typography>
-            <IconButton color="inherit">
-              <Badge badgeContent={cartItems.length} color="secondary">
-                <ShoppingCartIcon />
-              </Badge>
-            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {totalAmount > 0 && (
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  ${totalAmount}
+                </Typography>
+              )}
+              <IconButton color="inherit">
+                <Badge badgeContent={totalItems > 0 ? totalItems : undefined} color="secondary">
+                  <ShoppingCartIcon />
+                </Badge>
+              </IconButton>
+            </Box>
           </Toolbar>
         </AppBar>
 

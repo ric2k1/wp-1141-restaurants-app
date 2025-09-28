@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -12,23 +12,39 @@ import {
 import { Restaurant as RestaurantIcon, AddShoppingCart as AddShoppingCartIcon } from '@mui/icons-material';
 import { useRestaurant } from '../hooks/useRestaurant';
 import { useDishDisplay } from '../hooks/useDishDisplay';
+import CartPopup from './CartPopup';
+import { generateCartItemId } from '../utils/cartUtils';
+import { SUCCESS_MESSAGES, ERROR_MESSAGES, UI_CONSTANTS } from '../utils/constants';
 
 const DishComponent: React.FC = () => {
   // Use restaurant context for global state
   const { selectedItem } = useRestaurant();
 
+  // Cart popup state
+  const [isCartPopupOpen, setIsCartPopupOpen] = useState(false);
+  const [cartItemId, setCartItemId] = useState<string>('');
+
   // Use custom hook for dish display logic
   const {
     imageLoading,
     imageError,
-    buttonLoading,
     showSuccessMessage,
     currentImage,
     handleImageLoad,
     handleImageError,
-    handleAddToCartClick,
     setShowSuccessMessage,
   } = useDishDisplay();
+
+  // Handle add to cart button click
+  const handleOpenCartPopup = () => {
+    if (selectedItem) {
+      // 不先添加到購物車，而是直接打開彈出視窗
+      // 讓 CartPopup 自己管理購物車項目
+      const newCartItemId = generateCartItemId(selectedItem.id);
+      setCartItemId(newCartItemId);
+      setIsCartPopupOpen(true);
+    }
+  };
 
   return (
     <Box sx={{ width: '70%' }}>
@@ -70,7 +86,7 @@ const DishComponent: React.FC = () => {
                   color: 'text.secondary'
                 }}>
                   <RestaurantIcon sx={{ fontSize: 80, mb: 2 }} />
-                  <Typography variant="h6">圖片載入失敗</Typography>
+                  <Typography variant="h6">{ERROR_MESSAGES.IMAGE_LOAD_FAILED}</Typography>
                 </Box>
               ) : (
                 <CardMedia
@@ -104,9 +120,8 @@ const DishComponent: React.FC = () => {
               <Button
                 variant="contained"
                 size="medium"
-                onClick={handleAddToCartClick}
-                disabled={buttonLoading}
-                startIcon={buttonLoading ? <CircularProgress size={20} color="inherit" /> : <AddShoppingCartIcon />}
+                onClick={handleOpenCartPopup}
+                startIcon={<AddShoppingCartIcon />}
                 sx={{
                   py: 1,
                   px: 3,
@@ -117,12 +132,9 @@ const DishComponent: React.FC = () => {
                   '&:hover': {
                     backgroundColor: 'primary.dark',
                   },
-                  '&:disabled': {
-                    backgroundColor: 'primary.light',
-                  },
                 }}
               >
-                {buttonLoading ? '加入中...' : '加入購物車'}
+                加入購物車
               </Button>
             </Box>
           </Box>
@@ -150,7 +162,7 @@ const DishComponent: React.FC = () => {
       {/* 成功提示 */}
       <Snackbar
         open={showSuccessMessage}
-        autoHideDuration={2000}
+        autoHideDuration={UI_CONSTANTS.SNACKBAR_AUTO_HIDE_DURATION}
         onClose={() => setShowSuccessMessage(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
@@ -159,9 +171,19 @@ const DishComponent: React.FC = () => {
           severity="success" 
           sx={{ width: '100%' }}
         >
-          {selectedItem?.name} 已加入購物車！
+          {selectedItem?.name} {SUCCESS_MESSAGES.ITEM_ADDED_TO_CART}
         </Alert>
       </Snackbar>
+
+      {/* 購物車彈出視窗 */}
+      {selectedItem && (
+        <CartPopup
+          open={isCartPopupOpen}
+          onClose={() => setIsCartPopupOpen(false)}
+          item={selectedItem}
+          cartItemId={cartItemId}
+        />
+      )}
     </Box>
   );
 };

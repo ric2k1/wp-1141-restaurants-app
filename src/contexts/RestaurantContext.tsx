@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { 
   parseMenuData, 
@@ -8,6 +8,21 @@ import {
   type MenuItem,
   type ComboOption 
 } from '../utils/menuData';
+import { 
+  generateCartItemId, 
+  extractItemIdFromCartId, 
+  calculateTotalItems, 
+  calculateTotalAmount,
+  isValidQuantity 
+} from '../utils/cartUtils';
+import { DEFAULT_VALUES, ERROR_MESSAGES } from '../utils/constants';
+
+// 購物車項目類型
+export interface CartItem {
+  id: string; // 唯一 ID
+  item: MenuItem | ComboOption;
+  quantity: number;
+}
 
 // 定義 Context 的類型
 export interface RestaurantContextType {
@@ -18,14 +33,18 @@ export interface RestaurantContextType {
   selectedItem: MenuItem | ComboOption | null;
   
   // 購物車相關狀態
-  cartItems: (MenuItem | ComboOption)[];
+  cartItems: CartItem[];
+  totalItems: number;
+  totalAmount: number;
   
   // 方法
   setSelectedCategory: (category: string) => void;
   setSelectedItem: (item: MenuItem | ComboOption | null) => void;
   handleCategoryChange: (event: React.SyntheticEvent, newValue: string) => void;
   handleItemSelect: (item: MenuItem | ComboOption) => void;
-  handleAddToCart: (item: MenuItem | ComboOption) => void;
+  handleAddToCart: (item: MenuItem | ComboOption) => string;
+  updateCartItemQuantity: (cartItemId: string, quantity: number, item?: MenuItem | ComboOption) => void;
+  removeCartItem: (cartItemId: string) => void;
   getCurrentItems: () => (MenuItem | ComboOption)[];
 }
 
@@ -40,9 +59,9 @@ interface RestaurantProviderProps {
 export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('前菜');
+  const [selectedCategory, setSelectedCategory] = useState<string>(DEFAULT_VALUES.INITIAL_CATEGORY);
   const [selectedItem, setSelectedItem] = useState<MenuItem | ComboOption | null>(null);
-  const [cartItems, setCartItems] = useState<(MenuItem | ComboOption)[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // 載入菜單數據
   useEffect(() => {
@@ -54,13 +73,13 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
         setCategories(getCategories(items));
         
         // 自動選擇前菜分類的第一個項目
-        const appetizerItems = getItemsByCategory(items, '前菜');
+        const appetizerItems = getItemsByCategory(items, DEFAULT_VALUES.INITIAL_CATEGORY);
         if (appetizerItems.length > 0) {
           setSelectedItem(appetizerItems[0]);
         }
       })
       .catch(error => {
-        console.error('載入菜單數據失敗:', error);
+        console.error(ERROR_MESSAGES.MENU_LOAD_FAILED, error);
       });
   }, []);
 
@@ -90,10 +109,59 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     setSelectedItem(item);
   };
 
-  // 添加到購物車
-  const handleAddToCart = (item: MenuItem | ComboOption) => {
-    setCartItems(prev => [...prev, item]);
-  };
+  // 使用 useMemo 優化計算
+  const totalItems = useMemo(() => calculateTotalItems(cartItems), [cartItems]);
+  const totalAmount = useMemo(() => calculateTotalAmount(cartItems), [cartItems]);
+
+  // 添加到購物車 - 每次都創建新的購物車項目
+  const handleAddToCart = useCallback((item: MenuItem | ComboOption): string => {
+    const cartItemId = generateCartItemId(item.id);
+    setCartItems(prev => [...prev, { id: cartItemId, item, quantity: DEFAULT_VALUES.INITIAL_QUANTITY }]);
+    return cartItemId;
+  }, []);
+
+  // 更新購物車項目數量
+  const updateCartItemQuantity = useCallback((cartItemId: string, quantity: number, item?: MenuItem | ComboOption) => {
+    // 驗證數量
+    if (!isValidQuantity(quantity)) {
+      console.error(ERROR_MESSAGES.INVALID_QUANTITY, quantity);
+      return;
+    }
+
+    setCartItems(prev => {
+      if (quantity <= 0) {
+        return prev.filter(cartItem => cartItem.id !== cartItemId);
+      } else {
+        const existingItem = prev.find(cartItem => cartItem.id === cartItemId);
+        
+        if (existingItem) {
+          // 更新現有項目
+          return prev.map(cartItem =>
+            cartItem.id === cartItemId
+              ? { ...cartItem, quantity }
+              : cartItem
+          );
+        } else if (item) {
+          // 添加新項目（如果提供了 item 參數）
+          return [...prev, { id: cartItemId, item, quantity }];
+        } else {
+          // 嘗試從 cartItemId 中提取 itemId 並重新創建
+          const itemId = extractItemIdFromCartId(cartItemId);
+          const foundItem = [...menuItems, ...comboOptions].find(i => i.id === itemId);
+          
+          if (foundItem) {
+            return [...prev, { id: cartItemId, item: foundItem, quantity }];
+          }
+          return prev;
+        }
+      }
+    });
+  }, [menuItems, comboOptions]);
+
+  // 移除購物車項目
+  const removeCartItem = useCallback((cartItemId: string) => {
+    setCartItems(prev => prev.filter(cartItem => cartItem.id !== cartItemId));
+  }, []);
 
   const value: RestaurantContextType = {
     menuItems,
@@ -101,11 +169,15 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     selectedCategory,
     selectedItem,
     cartItems,
+    totalItems,
+    totalAmount,
     setSelectedCategory,
     setSelectedItem,
     handleCategoryChange,
     handleItemSelect,
     handleAddToCart,
+    updateCartItemQuantity,
+    removeCartItem,
     getCurrentItems,
   };
 
