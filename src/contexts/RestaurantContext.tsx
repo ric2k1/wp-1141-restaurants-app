@@ -20,6 +20,8 @@ export interface CartItem {
   id: string; // 唯一 ID
   item: MenuItem;
   quantity: number;
+  isSubmitted?: boolean; // 是否已送出
+  isImmutable?: boolean; // 是否不可修改（已送出的項目）
 }
 
 // 定義 Context 的類型
@@ -34,6 +36,7 @@ export interface RestaurantContextType {
   cartItems: CartItem[];
   totalItems: number;
   totalAmount: number;
+  submittedItems: CartItem[]; // 已送出的訂單項目
   
   // 方法
   setSelectedCategory: (category: string) => void;
@@ -43,6 +46,8 @@ export interface RestaurantContextType {
   handleAddToCart: (item: MenuItem) => string;
   updateCartItemQuantity: (cartItemId: string, quantity: number, item?: MenuItem) => void;
   removeCartItem: (cartItemId: string) => void;
+  cleanZeroQuantityItems: () => void;
+  submitOrder: () => void;
   getCurrentItems: () => MenuItem[];
 }
 
@@ -60,6 +65,7 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
   const [selectedCategory, setSelectedCategory] = useState<string>(DEFAULT_VALUES.INITIAL_CATEGORY);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [submittedItems, setSubmittedItems] = useState<CartItem[]>([]);
 
   // 載入菜單數據
   useEffect(() => {
@@ -124,38 +130,60 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     }
 
     setCartItems(prev => {
-      if (quantity <= 0) {
-        return prev.filter(cartItem => cartItem.id !== cartItemId);
+      const existingItem = prev.find(cartItem => cartItem.id === cartItemId);
+      
+      // 如果項目存在且被標記為不可修改，則不允許修改
+      if (existingItem && existingItem.isImmutable) {
+        console.warn('Cannot modify immutable cart item:', cartItemId);
+        return prev;
+      }
+      
+      if (existingItem) {
+        // 更新現有項目（包括數量為0的情況）
+        return prev.map(cartItem =>
+          cartItem.id === cartItemId
+            ? { ...cartItem, quantity }
+            : cartItem
+        );
+      } else if (item) {
+        // 添加新項目（如果提供了 item 參數）
+        return [...prev, { id: cartItemId, item, quantity }];
       } else {
-        const existingItem = prev.find(cartItem => cartItem.id === cartItemId);
+        // 嘗試從 cartItemId 中提取 itemId 並重新創建
+        const itemId = extractItemIdFromCartId(cartItemId);
+        const foundItem = menuItems.find(i => i.id === itemId);
         
-        if (existingItem) {
-          // 更新現有項目
-          return prev.map(cartItem =>
-            cartItem.id === cartItemId
-              ? { ...cartItem, quantity }
-              : cartItem
-          );
-        } else if (item) {
-          // 添加新項目（如果提供了 item 參數）
-          return [...prev, { id: cartItemId, item, quantity }];
-        } else {
-          // 嘗試從 cartItemId 中提取 itemId 並重新創建
-          const itemId = extractItemIdFromCartId(cartItemId);
-          const foundItem = menuItems.find(i => i.id === itemId);
-          
-          if (foundItem) {
-            return [...prev, { id: cartItemId, item: foundItem, quantity }];
-          }
-          return prev;
+        if (foundItem) {
+          return [...prev, { id: cartItemId, item: foundItem, quantity }];
         }
+        return prev;
       }
     });
   }, [menuItems]);
 
+  // 送出訂單
+  const submitOrder = useCallback(() => {
+    // 只將非零數量的項目標記為已送出
+    const itemsToSubmit = cartItems.filter(item => item.quantity > 0);
+    setSubmittedItems(prev => [...prev, ...itemsToSubmit]);
+    
+    // 標記已送出的項目為不可修改
+    setCartItems(prev => prev.map(cartItem => {
+      if (cartItem.quantity > 0) {
+        return { ...cartItem, isImmutable: true };
+      }
+      return cartItem;
+    }));
+  }, [cartItems]);
+
   // 移除購物車項目
   const removeCartItem = useCallback((cartItemId: string) => {
     setCartItems(prev => prev.filter(cartItem => cartItem.id !== cartItemId));
+  }, []);
+
+  // 清理數量為 0 的購物車項目
+  const cleanZeroQuantityItems = useCallback(() => {
+    setCartItems(prev => prev.filter(cartItem => cartItem.quantity > 0));
   }, []);
 
   const value: RestaurantContextType = {
@@ -166,6 +194,7 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     cartItems,
     totalItems,
     totalAmount,
+    submittedItems,
     setSelectedCategory,
     setSelectedItem,
     handleCategoryChange,
@@ -173,6 +202,8 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     handleAddToCart,
     updateCartItemQuantity,
     removeCartItem,
+    cleanZeroQuantityItems,
+    submitOrder,
     getCurrentItems,
   };
 

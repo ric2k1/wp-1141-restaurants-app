@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -18,6 +18,9 @@ import { RestaurantProvider } from './contexts/RestaurantContext';
 import { useRestaurant } from './hooks/useRestaurant';
 import MenuComponent from './components/MenuComponent';
 import DishComponent from './components/DishComponent';
+import CartListPopup from './components/CartListPopup';
+import OrderConfirmationPopup from './components/OrderConfirmationPopup';
+import EmptyCartMessagePopup from './components/EmptyCartMessagePopup';
 
 // 創建主題
 const theme = createTheme({
@@ -39,7 +42,37 @@ const theme = createTheme({
 
 // 內部組件，使用 Context
 const AppContent: React.FC = () => {
-  const { totalItems, totalAmount } = useRestaurant();
+  const { totalItems, totalAmount, submitOrder, cartItems, cleanZeroQuantityItems } = useRestaurant();
+  const [cartListOpen, setCartListOpen] = useState(false);
+  const [orderConfirmationOpen, setOrderConfirmationOpen] = useState(false);
+  const [emptyCartMessageOpen, setEmptyCartMessageOpen] = useState(false);
+
+  const handleCartClick = () => {
+    // 在打開購物車清單之前，先清理數量為 0 的項目
+    cleanZeroQuantityItems();
+    setCartListOpen(true);
+  };
+
+  const handleSubmitOrder = () => {
+    // 檢查是否有非零數量的項目
+    const hasNonZeroItems = cartItems.some(item => item.quantity > 0);
+    
+    if (hasNonZeroItems) {
+      submitOrder();
+      setOrderConfirmationOpen(true);
+    } else {
+      // 如果購物車為空，顯示空購物車訊息
+      setEmptyCartMessageOpen(true);
+    }
+  };
+
+  const handleContinueOrdering = () => {
+    setOrderConfirmationOpen(false);
+  };
+
+  const handleCloseEmptyCartMessage = () => {
+    setEmptyCartMessageOpen(false);
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -58,7 +91,7 @@ const AppContent: React.FC = () => {
                   ${totalAmount}
                 </Typography>
               )}
-              <IconButton color="inherit">
+              <IconButton color="inherit" onClick={handleCartClick}>
                 <Badge badgeContent={totalItems > 0 ? totalItems : undefined} color="secondary">
                   <ShoppingCartIcon />
                 </Badge>
@@ -76,6 +109,25 @@ const AppContent: React.FC = () => {
             <DishComponent />
           </Box>
         </Container>
+
+        {/* 購物車清單彈出視窗 */}
+        <CartListPopup
+          open={cartListOpen}
+          onClose={() => setCartListOpen(false)}
+          onSubmitOrder={handleSubmitOrder}
+        />
+
+        {/* 訂單確認彈出視窗 */}
+        <OrderConfirmationPopup
+          open={orderConfirmationOpen}
+          onContinueOrdering={handleContinueOrdering}
+        />
+
+        {/* 空購物車訊息彈出視窗 */}
+        <EmptyCartMessagePopup
+          open={emptyCartMessageOpen}
+          onClose={handleCloseEmptyCartMessage}
+        />
       </Box>
     </ThemeProvider>
   );
