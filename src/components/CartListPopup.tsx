@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -7,18 +7,15 @@ import {
   Button,
   Typography,
   Box,
-  IconButton,
   Paper,
   List,
   ListItem,
   Divider,
 } from '@mui/material';
-import {
-  Remove as RemoveIcon,
-  Add as AddIcon,
-} from '@mui/icons-material';
 import { useRestaurant } from '../hooks/useRestaurant';
-import { UI_CONSTANTS } from '../utils/constants';
+import { UI_CONSTANTS, COLORS } from '../utils/constants';
+import { getSubmitButtonStyles } from '../utils/styleUtils';
+import CartItemComponent from './CartItemComponent';
 
 interface CartListPopupProps {
   open: boolean;
@@ -29,20 +26,26 @@ interface CartListPopupProps {
 const CartListPopup: React.FC<CartListPopupProps> = ({ open, onClose, onSubmitOrder }) => {
   const { cartItems, updateCartItemQuantity, totalAmount } = useRestaurant();
   
-  // 現在所有項目都應該有數量 > 0，因為在打開時已經清理過了
-  const visibleCartItems = cartItems;
-  
   // 檢查是否所有項目都不可修改
-  const allItemsImmutable = cartItems.length > 0 && cartItems.every(item => item.isImmutable);
+  const allItemsImmutable = useMemo(() => 
+    cartItems.length > 0 && cartItems.every(item => item.isImmutable),
+    [cartItems]
+  );
 
-  const handleQuantityChange = (cartItemId: string, newQuantity: number) => {
+  // 檢查是否有可送出的項目（數量大於 0 且未送出的項目）
+  const hasSubmittableItems = useMemo(() => 
+    cartItems.some(item => item.quantity > 0 && !item.isImmutable),
+    [cartItems]
+  );
+
+  const handleQuantityChange = useCallback((cartItemId: string, newQuantity: number) => {
     updateCartItemQuantity(cartItemId, newQuantity);
-  };
+  }, [updateCartItemQuantity]);
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = useCallback(() => {
     onSubmitOrder();
     onClose();
-  };
+  }, [onSubmitOrder, onClose]);
 
   return (
     <Dialog
@@ -65,7 +68,7 @@ const CartListPopup: React.FC<CartListPopupProps> = ({ open, onClose, onSubmitOr
       
       <DialogContent sx={{ pt: 2 }}>
         {cartItems.length === 0 ? (
-          <Paper elevation={1} sx={{ p: 4, textAlign: 'center', backgroundColor: '#f8f9fa' }}>
+          <Paper elevation={1} sx={{ p: 4, textAlign: 'center', backgroundColor: COLORS.CART_ITEM_BACKGROUND }}>
             <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2 }}>
               您的購物車是空的！
             </Typography>
@@ -83,114 +86,15 @@ const CartListPopup: React.FC<CartListPopupProps> = ({ open, onClose, onSubmitOr
           </Paper>
         ) : (
           <List sx={{ width: '100%' }}>
-            {visibleCartItems.map((cartItem, index) => (
+            {cartItems.map((cartItem, index) => (
               <React.Fragment key={cartItem.id}>
                 <ListItem sx={{ px: 0 }}>
-                  <Paper 
-                    elevation={1} 
-                    sx={{ 
-                      p: 2, 
-                      width: '100%',
-                      backgroundColor: cartItem.isImmutable ? '#f0f0f0' : '#f8f9fa',
-                      opacity: cartItem.isImmutable ? 0.8 : 1,
-                      border: cartItem.isImmutable ? '2px solid #e0e0e0' : 'none',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              fontWeight: 'bold',
-                              color: cartItem.isImmutable ? 'grey.600' : 'inherit',
-                            }}
-                          >
-                            {cartItem.item.name}
-                          </Typography>
-                          {cartItem.isImmutable && (
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                backgroundColor: 'grey.400',
-                                color: 'white',
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 1,
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              已送出
-                            </Typography>
-                          )}
-                        </Box>
-                        <Typography variant="body1" sx={{ color: 'text.secondary', mb: 1 }}>
-                          單價: ${cartItem.item.price}
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                          小計: ${cartItem.item.price * cartItem.quantity}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton
-                          onClick={() => handleQuantityChange(cartItem.id, Math.max(0, cartItem.quantity - 1))}
-                          disabled={cartItem.isImmutable}
-                          sx={{
-                            backgroundColor: cartItem.isImmutable ? 'grey.300' : 'primary.main',
-                            color: 'white',
-                            '&:hover': {
-                              backgroundColor: cartItem.isImmutable ? 'grey.300' : 'primary.dark',
-                            },
-                            '&:disabled': {
-                              backgroundColor: 'grey.300',
-                              color: 'grey.500',
-                            },
-                          }}
-                        >
-                          <RemoveIcon />
-                        </IconButton>
-                        
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            minWidth: 40,
-                            fontWeight: 'bold',
-                            color: cartItem.isImmutable ? 'grey.500' : 'primary.main',
-                            backgroundColor: 'white',
-                            borderRadius: 1,
-                            py: 0.5,
-                            px: 1,
-                            border: '2px solid',
-                            borderColor: cartItem.isImmutable ? 'grey.300' : 'primary.light',
-                            textAlign: 'center',
-                          }}
-                        >
-                          {cartItem.quantity}
-                        </Typography>
-                        
-                        <IconButton
-                          onClick={() => handleQuantityChange(cartItem.id, cartItem.quantity + 1)}
-                          disabled={cartItem.isImmutable}
-                          sx={{
-                            backgroundColor: cartItem.isImmutable ? 'grey.300' : 'primary.main',
-                            color: 'white',
-                            '&:hover': {
-                              backgroundColor: cartItem.isImmutable ? 'grey.300' : 'primary.dark',
-                            },
-                            '&:disabled': {
-                              backgroundColor: 'grey.300',
-                              color: 'grey.500',
-                            },
-                          }}
-                        >
-                          <AddIcon />
-                        </IconButton>
-                      </Box>
-                    </Box>
-                  </Paper>
+                  <CartItemComponent
+                    cartItem={cartItem}
+                    onQuantityChange={handleQuantityChange}
+                  />
                 </ListItem>
-                {index < visibleCartItems.length - 1 && <Divider sx={{ my: 1 }} />}
+                {index < cartItems.length - 1 && <Divider sx={{ my: 1 }} />}
               </React.Fragment>
             ))}
             
@@ -215,20 +119,8 @@ const CartListPopup: React.FC<CartListPopupProps> = ({ open, onClose, onSubmitOr
           <Button
             onClick={handleSubmitOrder}
             variant="contained"
-            disabled={allItemsImmutable}
-            sx={{
-              px: 4,
-              py: 1,
-              fontWeight: 'bold',
-              backgroundColor: allItemsImmutable ? 'grey.300' : 'primary.main',
-              '&:hover': {
-                backgroundColor: allItemsImmutable ? 'grey.300' : 'primary.dark',
-              },
-              '&:disabled': {
-                backgroundColor: 'grey.300',
-                color: 'grey.500',
-              },
-            }}
+            disabled={allItemsImmutable || !hasSubmittableItems}
+            sx={getSubmitButtonStyles(allItemsImmutable || !hasSubmittableItems)}
           >
             送出
           </Button>

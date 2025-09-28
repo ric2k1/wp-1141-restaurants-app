@@ -42,26 +42,26 @@ const theme = createTheme({
 
 // 內部組件，使用 Context
 const AppContent: React.FC = () => {
-  const { totalItems, totalAmount, submitOrder, cartItems, cleanZeroQuantityItems } = useRestaurant();
+  const { totalItems, totalAmount, submitOrder, cartItems, removeZeroQuantityItems } = useRestaurant();
   const [cartListOpen, setCartListOpen] = useState(false);
   const [orderConfirmationOpen, setOrderConfirmationOpen] = useState(false);
   const [emptyCartMessageOpen, setEmptyCartMessageOpen] = useState(false);
 
   const handleCartClick = () => {
     // 在打開購物車清單之前，先清理數量為 0 的項目
-    cleanZeroQuantityItems();
+    removeZeroQuantityItems();
     setCartListOpen(true);
   };
 
   const handleSubmitOrder = () => {
-    // 檢查是否有非零數量的項目
-    const hasNonZeroItems = cartItems.some(item => item.quantity > 0);
+    // 檢查是否有非零數量且未送出的項目
+    const hasSubmittableItems = cartItems.some(item => item.quantity > 0 && !item.isImmutable);
     
-    if (hasNonZeroItems) {
+    if (hasSubmittableItems) {
       submitOrder();
       setOrderConfirmationOpen(true);
     } else {
-      // 如果購物車為空，顯示空購物車訊息
+      // 如果沒有可送出的項目，顯示空購物車訊息
       setEmptyCartMessageOpen(true);
     }
   };

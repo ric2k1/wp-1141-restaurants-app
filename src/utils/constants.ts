@@ -9,6 +9,17 @@ export const UI_CONSTANTS = {
   DIALOG_BOX_SHADOW: '0 8px 32px rgba(0,0,0,0.12)',
 } as const;
 
+// 顏色常數
+export const COLORS = {
+  CART_ITEM_BACKGROUND: '#f8f9fa',
+  CART_ITEM_IMMUTABLE_BACKGROUND: '#f0f0f0',
+  CART_ITEM_IMMUTABLE_BORDER: '#e0e0e0',
+  BUTTON_DISABLED_BACKGROUND: 'grey.300',
+  BUTTON_DISABLED_COLOR: 'grey.500',
+  IMMUTABLE_TEXT_COLOR: 'grey.600',
+  IMMUTABLE_BORDER_COLOR: 'grey.300',
+} as const;
+
 // 預設值
 export const DEFAULT_VALUES = {
   INITIAL_QUANTITY: 1,

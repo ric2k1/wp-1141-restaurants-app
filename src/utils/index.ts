@@ -2,3 +2,4 @@
 export * from './cartUtils';
 export * from './constants';
 export * from './menuData';
+export * from './styleUtils';

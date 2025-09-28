@@ -20,7 +20,6 @@ export interface CartItem {
   id: string; // 唯一 ID
   item: MenuItem;
   quantity: number;
-  isSubmitted?: boolean; // 是否已送出
   isImmutable?: boolean; // 是否不可修改（已送出的項目）
 }
 
@@ -46,7 +45,7 @@ export interface RestaurantContextType {
   handleAddToCart: (item: MenuItem) => string;
   updateCartItemQuantity: (cartItemId: string, quantity: number, item?: MenuItem) => void;
   removeCartItem: (cartItemId: string) => void;
-  cleanZeroQuantityItems: () => void;
+  removeZeroQuantityItems: () => void;
   submitOrder: () => void;
   getCurrentItems: () => MenuItem[];
 }
@@ -181,8 +180,8 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     setCartItems(prev => prev.filter(cartItem => cartItem.id !== cartItemId));
   }, []);
 
-  // 清理數量為 0 的購物車項目
-  const cleanZeroQuantityItems = useCallback(() => {
+  // 移除數量為 0 的購物車項目
+  const removeZeroQuantityItems = useCallback(() => {
     setCartItems(prev => prev.filter(cartItem => cartItem.quantity > 0));
   }, []);
 
@@ -202,7 +201,7 @@ export const RestaurantProvider: React.FC<RestaurantProviderProps> = ({ children
     handleAddToCart,
     updateCartItemQuantity,
     removeCartItem,
-    cleanZeroQuantityItems,
+    removeZeroQuantityItems,
     submitOrder,
     getCurrentItems,
   };
