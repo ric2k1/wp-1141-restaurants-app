@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRestaurant } from './useRestaurant';
-import type { MenuItem, ComboOption } from '../utils/menuData';
+import type { MenuItem } from '../utils/menuData';
 import { isValidQuantity } from '../utils/cartUtils';
 import { DEFAULT_VALUES } from '../utils/constants';
 
 export interface UseCartPopupProps {
   open: boolean;
-  item: MenuItem | ComboOption;
+  item: MenuItem;
   cartItemId: string;
   onClose: () => void;
 }

@@ -15,13 +15,13 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import { useCartPopup } from '../hooks/useCartPopup';
-import type { MenuItem, ComboOption } from '../utils/menuData';
+import type { MenuItem } from '../utils/menuData';
 import { UI_CONSTANTS } from '../utils/constants';
 
 interface CartPopupProps {
   open: boolean;
   onClose: () => void;
-  item: MenuItem | ComboOption;
+  item: MenuItem;
   cartItemId: string;
 }
 
