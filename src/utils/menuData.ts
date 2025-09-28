@@ -25,10 +25,27 @@ export interface ComboOption {
 // 解析 CSV 數據
 export function parseMenuData(csvText: string): MenuItem[] {
   const lines = csvText.trim().split('\n');
-  const headers = lines[0].split(',');
   
   return lines.slice(1).map((line, index) => {
-    const values = line.split(',');
+    // 使用更智能的 CSV 解析，處理包含逗號的引號字段
+    const values: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim()); // 添加最後一個字段
+    
     return {
       id: values[0] || `item-${index}`,
       category: values[1] || '',

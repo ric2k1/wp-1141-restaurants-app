@@ -56,7 +56,7 @@ const theme = createTheme({
 function App() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('套餐組合');
+  const [selectedCategory, setSelectedCategory] = useState('前菜');
   const [selectedItem, setSelectedItem] = useState<MenuItem | ComboOption | null>(null);
   const [cartItems, setCartItems] = useState<(MenuItem | ComboOption)[]>([]);
 
@@ -68,6 +68,12 @@ function App() {
         const items = parseMenuData(csvText);
         setMenuItems(items);
         setCategories(getCategories(items));
+        
+        // 自動選擇前菜分類的第一個項目
+        const appetizerItems = getItemsByCategory(items, '前菜');
+        if (appetizerItems.length > 0) {
+          setSelectedItem(appetizerItems[0]);
+        }
       })
       .catch(error => {
         console.error('載入菜單數據失敗:', error);
@@ -85,7 +91,14 @@ function App() {
   // 處理分類選擇
   const handleCategoryChange = (_event: React.SyntheticEvent, newValue: string) => {
     setSelectedCategory(newValue);
-    setSelectedItem(null);
+    
+    // 獲取新分類的第一個項目
+    const currentItems = newValue === '套餐組合' ? comboOptions : getItemsByCategory(menuItems, newValue);
+    if (currentItems.length > 0) {
+      setSelectedItem(currentItems[0]);
+    } else {
+      setSelectedItem(null);
+    }
   };
 
   // 處理項目選擇
@@ -119,8 +132,8 @@ function App() {
 
         <Container maxWidth="xl" sx={{ mt: 3 }}>
           <Box sx={{ display: 'flex', gap: 3, height: '80vh' }}>
-            {/* 左側菜單區域 */}
-            <Box sx={{ flex: 1 }}>
+            {/* 左側菜單區域 - 30% 寬度 */}
+            <Box sx={{ width: '30%', minWidth: '300px' }}>
               <Paper elevation={2} sx={{ height: '100%', overflow: 'hidden' }}>
                 {/* 分類標籤 */}
                 <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -129,7 +142,15 @@ function App() {
                     onChange={handleCategoryChange}
                     variant="scrollable"
                     scrollButtons="auto"
-                    sx={{ px: 2 }}
+                    allowScrollButtonsMobile
+                    sx={{ 
+                      px: 1,
+                      '& .MuiTab-root': {
+                        minWidth: 'auto',
+                        fontSize: '0.875rem',
+                        px: 1.5,
+                      }
+                    }}
                   >
                     {categories.map((category) => (
                       <Tab key={category} label={category} value={category} />
@@ -147,6 +168,10 @@ function App() {
                             onClick={() => handleItemSelect(item)}
                             selected={selectedItem?.id === item.id}
                             sx={{
+                              flexDirection: 'column',
+                              alignItems: 'flex-start',
+                              py: 2,
+                              px: 2,
                               '&.Mui-selected': {
                                 backgroundColor: 'primary.light',
                                 color: 'white',
@@ -156,37 +181,56 @@ function App() {
                               },
                             }}
                           >
-                            <ListItemText
-                              primary={item.name}
-                              secondary={
-                                <Box>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {item.description}
-                                  </Typography>
-                                  <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                    {'dietaryTags' in item && item.dietaryTags && (
-                                      <Chip
-                                        label={item.dietaryTags}
-                                        size="small"
-                                        color="secondary"
-                                        variant="outlined"
-                                      />
-                                    )}
-                                    {'spiciness' in item && item.spiciness && (
-                                      <Chip
-                                        label={item.spiciness}
-                                        size="small"
-                                        color="warning"
-                                        variant="outlined"
-                                      />
-                                    )}
-                                  </Box>
-                                </Box>
-                              }
-                            />
-                            <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
-                              NT$ {item.price}
+                            {/* 第一行：品名和價格 */}
+                            <Box sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              width: '100%',
+                              mb: 1
+                            }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                                {item.name}
+                              </Typography>
+                              <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', ml: 2 }}>
+                                NT$ {item.price}
+                              </Typography>
+                            </Box>
+                            
+                            {/* 第二行：描述 */}
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary" 
+                              sx={{ 
+                                mb: 1,
+                                lineHeight: 1.4,
+                                fontSize: '0.875rem'
+                              }}
+                            >
+                              {item.description}
                             </Typography>
+                            
+                            {/* 第三行：標籤 */}
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                              {'dietaryTags' in item && item.dietaryTags && (
+                                <Chip
+                                  label={item.dietaryTags}
+                                  size="small"
+                                  color="secondary"
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.75rem', height: '24px' }}
+                                />
+                              )}
+                              {'spiciness' in item && item.spiciness && (
+                                <Chip
+                                  label={item.spiciness}
+                                  size="small"
+                                  color="warning"
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.75rem', height: '24px' }}
+                                />
+                              )}
+                            </Box>
                           </ListItemButton>
                         </ListItem>
                         <Divider />
@@ -197,66 +241,61 @@ function App() {
               </Paper>
             </Box>
 
-            {/* 右側菜品詳情區域 */}
-            <Box sx={{ flex: 1 }}>
-              <Paper elevation={2} sx={{ height: '100%', p: 3 }}>
+            {/* 右側菜品詳情區域 - 70% 寬度 */}
+            <Box sx={{ width: '70%' }}>
+              <Paper elevation={2} sx={{ height: '100%', overflow: 'hidden' }}>
                 {selectedItem ? (
-                  <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    {/* 菜品圖片 */}
-                    <Box sx={{ flex: 1, mb: 2 }}>
+                  <Box sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    position: 'relative'
+                  }}>
+                    {/* 菜品圖片 - 佔滿整個區域 */}
+                    <Box sx={{ 
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative'
+                    }}>
                       <CardMedia
                         component="img"
-                        height="300"
                         image={getRandomFoodImage()}
                         alt={selectedItem.name}
                         sx={{
-                          borderRadius: 2,
+                          width: '100%',
+                          height: '100%',
                           objectFit: 'cover',
                         }}
                       />
                     </Box>
 
-                    {/* 菜品詳情 */}
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
-                        {selectedItem.name}
-                      </Typography>
-                      
-                      <Typography variant="body1" color="text.secondary" paragraph>
-                        {selectedItem.description}
-                      </Typography>
-
-                      <Box sx={{ mb: 2 }}>
-                        {'dietaryTags' in selectedItem && selectedItem.dietaryTags && (
-                          <Chip
-                            label={selectedItem.dietaryTags}
-                            color="secondary"
-                            variant="outlined"
-                            sx={{ mr: 1 }}
-                          />
-                        )}
-                        {'spiciness' in selectedItem && selectedItem.spiciness && (
-                          <Chip
-                            label={selectedItem.spiciness}
-                            color="warning"
-                            variant="outlined"
-                          />
-                        )}
-                      </Box>
-
-                      <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>
-                        NT$ {selectedItem.price}
-                      </Typography>
-
+                    {/* 加入購物車按鈕 - 固定在底部 */}
+                    <Box sx={{ 
+                      position: 'absolute',
+                      bottom: 16,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(0,0,0,0.6)',
+                      borderRadius: 2,
+                      px: 2,
+                      py: 1
+                    }}>
                       <Button
                         variant="contained"
-                        size="large"
-                        fullWidth
+                        size="medium"
                         onClick={() => handleAddToCart(selectedItem)}
                         sx={{
-                          py: 1.5,
-                          fontSize: '1.1rem',
+                          py: 1,
+                          px: 3,
+                          fontSize: '1rem',
                           fontWeight: 'bold',
+                          backgroundColor: 'primary.main',
+                          borderRadius: 2,
+                          '&:hover': {
+                            backgroundColor: 'primary.dark',
+                          },
                         }}
                       >
                         加入購物車
